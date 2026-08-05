@@ -1,0 +1,10 @@
+name: Backend CI (placeholder)
+
+on:
+  workflow_dispatch:   
+
+jobs:
+  placeholder:
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "Backend CI not implemented yet"

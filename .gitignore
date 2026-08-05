@@ -72,3 +72,9 @@ desktop.ini
 ### ==== Logs ====
 *.log
 logs/
+
+### ==== DB dumps/backups (never the schema itself) ====
+db/dumps/
+db/backups/
+*.sql.gz
+*.dump

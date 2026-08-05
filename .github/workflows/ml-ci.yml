@@ -1,0 +1,10 @@
+name: Machine Learning Models CI (placeholder)
+
+on:
+  workflow_dispatch:   
+
+jobs:
+  placeholder:
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "Machine Learning Models CI not implemented yet"
