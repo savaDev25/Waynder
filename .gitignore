@@ -1,0 +1,74 @@
+### ==== Frontend (React) ====
+frontend/node_modules/
+frontend/dist/
+frontend/build/
+frontend/.env
+frontend/.env.local
+frontend/.env.*.local
+frontend/npm-debug.log*
+frontend/yarn-debug.log*
+frontend/yarn-error.log*
+frontend/.eslintcache
+
+### ==== Backend (Spring Boot / Maven) ====
+backend/target/
+backend/.mvn/
+backend/mvnw
+backend/mvnw.cmd
+backend/*.iml
+backend/.idea/
+backend/HELP.md
+backend/application-local.properties
+backend/application-local.yml
+backend/.env
+
+# If using Gradle instead of Maven
+backend/.gradle/
+backend/build/
+backend/!gradle/wrapper/gradle-wrapper.jar
+
+### ==== ML (Python) ====
+ml/venv/
+ml/__pycache__/
+ml/**/__pycache__/
+ml/*.pyc
+ml/.ipynb_checkpoints/
+ml/src/model/*.h5
+ml/src/model/*.pkl
+ml/src/model/*.joblib
+ml/src/model/*.onnx
+ml/.env
+
+### ==== Scraper (Python / Scrapy) ====
+scraper/venv/
+scraper/__pycache__/
+scraper/**/__pycache__/
+scraper/*.pyc
+scraper/.scrapy/
+scraper/*.log
+scraper/output/
+scraper/.env
+
+### ==== Databases / local dev ====
+*.sqlite3
+*.db
+.env
+.env.local
+
+### ==== IDEs / Editors ====
+.vscode/*
+!.vscode/settings.json
+!.vscode/extensions.json
+.idea/
+*.iml
+*.swp
+*.swo
+
+### ==== OS files ====
+.DS_Store
+Thumbs.db
+desktop.ini
+
+### ==== Logs ====
+*.log
+logs/
