@@ -11,12 +11,13 @@ frontend/yarn-error.log*
 frontend/.eslintcache
 
 ### ==== Backend (Spring Boot / Maven) ====
-backend/target/
-backend/.mvn/
-backend/mvnw
-backend/mvnw.cmd
-backend/*.iml
-backend/.idea/
+backend/waynder/target/
+backend/waynder/.mvn/
+backend/waynder/.mvn/wrapper/
+backend/waynder/mvnw
+backend/waynder/mvnw.cmd
+backend/waynder/*.iml
+backend/waynder/.idea/
 backend/HELP.md
 backend/application-local.properties
 backend/application-local.yml

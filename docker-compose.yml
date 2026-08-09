@@ -1,7 +1,6 @@
-version: "3.9"
 services:
   postgres:
-    image: postgres:16
+    image: postgis/postgis:16-3.4
     container_name: waynder-db
     restart: unless-stopped
     environment:
@@ -9,10 +8,10 @@ services:
       POSTGRES_PASSWORD: waynder_dev
       POSTGRES_DB: waynder_db
     ports:
-      - "5432:5432"
+      - "55432:5432"   # host:container — 5433 avoids the native install on 5432
     volumes:
       - waynder_pgdata:/var/lib/postgresql/data
-      - ./db/init:/docker-entrypoint-initdb.d   # runs .sql files on first create only
+      - ./db/init:/docker-entrypoint-initdb.d
 
 volumes:
   waynder_pgdata:
