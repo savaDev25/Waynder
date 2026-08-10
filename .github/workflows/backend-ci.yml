@@ -14,7 +14,22 @@ jobs:
     runs-on: ubuntu-latest
     defaults:
       run:
-        working-directory: backend/waynder
+        working-directory: backend
+
+    services:
+      postgres:
+        image: postgis/postgis:16-3.4
+        env:
+          POSTGRES_USER: waynder
+          POSTGRES_PASSWORD: waynder_dev
+          POSTGRES_DB: waynder_db
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
 
     steps:
       - name: Checkout
@@ -27,5 +42,22 @@ jobs:
           distribution: "temurin"
           cache: maven
 
+      - name: Install psql client
+        run: sudo apt-get update && sudo apt-get install -y postgresql-client
+
+      - name: Apply schema to CI database
+        working-directory: ${{ github.workspace }}/db/init
+        run: |
+          for f in *.sql; do
+            PGPASSWORD=waynder_dev psql -h localhost -U waynder -d waynder_db -f "$f"
+          done
+
       - name: Run tests
-        run: mvn -B test
+        env:
+          INGEST_API_KEY: ci-test-key
+        run: >
+          mvn -B test
+          -Dspring.datasource.url=jdbc:postgresql://localhost:5432/waynder_db
+          -Dspring.datasource.username=waynder
+          -Dspring.datasource.password=waynder_dev
+          -Drp.enable=false

@@ -2,18 +2,11 @@
 Tests for the OSM Overpass connector.
 
 Run with:
-    cd scraper
-    pip install pytest requests-mock
     pytest tests/test_osm_connector.py -v
 """
 
-import sys
-from pathlib import Path
-
 import pytest
 import requests_mock
-
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from connectors.osm_connector import (
     build_address,
