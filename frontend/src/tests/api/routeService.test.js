@@ -1,6 +1,6 @@
 import { describe, it, expect, afterEach } from 'vitest';
 import { routeService } from '../../api/routeService';
-import { mockFetchOnce } from '../testUtils';
+import { mockFetchOnce } from '../TestUtils';
 
 const rawRoute = {
   id: 'r1',

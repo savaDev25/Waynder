@@ -1,6 +1,6 @@
 import { describe, it, expect, afterEach } from 'vitest';
 import { planService } from '../../api/planService';
-import { mockFetchOnce } from '../testUtils';
+import { mockFetchOnce } from '../TestUtils';
 
 describe('planService', () => {
   afterEach(() => {
