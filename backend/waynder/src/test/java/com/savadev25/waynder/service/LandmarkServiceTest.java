@@ -8,6 +8,8 @@ import com.savadev25.waynder.entity.Tag;
 import com.savadev25.waynder.exception.ResourceNotFoundException;
 import com.savadev25.waynder.repository.LandmarkRepository;
 import com.savadev25.waynder.repository.TagRepository;
+import com.savadev25.waynder.utils.InputSanitizer;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -31,6 +33,19 @@ class LandmarkServiceTest {
 
     @Mock
     private TagRepository tagRepository;
+
+    @Mock
+    private InputSanitizer sanitizer;
+
+    // Real InputSanitizer strips HTML/validates URLs -- these tests aren't
+    // about that logic (InputSanitizer has, or should have, its own unit
+    // tests for that). Here it just needs to behave like a no-op passthrough
+    // so the existing assertions about name/description/etc still hold.
+    @BeforeEach
+    void stubSanitizer() {
+        lenient().when(sanitizer.stripHtml(any())).thenAnswer(inv -> inv.getArgument(0));
+        lenient().when(sanitizer.isSafeUrl(any())).thenReturn(true);
+    }
 
     @InjectMocks
     private LandmarkService landmarkService;

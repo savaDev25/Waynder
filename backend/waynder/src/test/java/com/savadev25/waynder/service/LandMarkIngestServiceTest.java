@@ -5,6 +5,8 @@ import com.savadev25.waynder.entity.Landmark;
 import com.savadev25.waynder.entity.Tag;
 import com.savadev25.waynder.repository.LandmarkRepository;
 import com.savadev25.waynder.repository.TagRepository;
+import com.savadev25.waynder.utils.InputSanitizer;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
@@ -28,6 +30,16 @@ class LandmarkIngestServiceTest {
 
     @Mock
     private TagRepository tagRepository;
+
+    @Mock
+    private InputSanitizer sanitizer;
+
+    @BeforeEach
+    void stubSanitizer() {
+        lenient().when(sanitizer.stripHtml(any())).thenAnswer(inv -> inv.getArgument(0));
+        lenient().when(sanitizer.isSafeUrl(any())).thenReturn(true);
+    }
+
 
     @InjectMocks
     private LandmarkIngestService landmarkIngestService;
