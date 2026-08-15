@@ -7,7 +7,7 @@ import {RPReporter} from '@reportportal/agent-js-vitest';
 // real key never gets committed. Set RP_API_KEY locally (e.g. in
 // frontend/.env, loaded via your shell) and as a GitHub Actions secret in CI.
 const rpConfig = {
-  apiKey: 'ba8b0827-4699-4cad-81e4-324cda840e07',
+  apiKey: process.env.RP_API_KEY,
   endpoint: process.env.RP_ENDPOINT || 'http://localhost:8080/api/v1',
   project: 'waynder_tests',
   launch: 'waynder_TEST_FRONTEND',

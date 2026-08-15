@@ -8,6 +8,7 @@ import com.savadev25.waynder.entity.Tag;
 import com.savadev25.waynder.exception.ResourceNotFoundException;
 import com.savadev25.waynder.repository.LandmarkRepository;
 import com.savadev25.waynder.repository.TagRepository;
+import com.savadev25.waynder.utils.InputSanitizer;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -26,6 +27,7 @@ public class LandmarkService {
 
     private final LandmarkRepository landmarkRepository;
     private final TagRepository tagRepository;
+    private final InputSanitizer sanitizer;
 
     public List<LandmarkResponseDTO> search(String query, String tag) {
         List<Landmark> results;
@@ -45,6 +47,10 @@ public class LandmarkService {
 
     @Transactional
     public LandmarkResponseDTO create(LandmarkCreateDTO dto) {
+        if (!sanitizer.isSafeUrl(dto.getImageUrl())) {
+            throw new IllegalArgumentException("Unsafe imageUrl scheme");
+        }
+
         Landmark landmark = new Landmark();
         landmark.setSource("manual");
         landmark.setExternalId(UUID.randomUUID().toString());
@@ -55,6 +61,10 @@ public class LandmarkService {
 
     @Transactional
     public LandmarkResponseDTO update(UUID id, LandmarkUpdateDTO dto) {
+        if (!sanitizer.isSafeUrl(dto.getImageUrl())) {
+            throw new IllegalArgumentException("Unsafe imageUrl scheme");
+        }
+
         Landmark landmark = findOrThrow(id);
         applyFields(
                 landmark,
@@ -78,9 +88,11 @@ public class LandmarkService {
 
     private void applyFields(Landmark landmark, String name, String description, String address,
                               Double lat, Double lng, String imageUrl, List<String> tagNames) {
-        landmark.setName(name);
-        landmark.setDescription(description);
-        landmark.setAddress(address);
+        // Strip any HTML/script markup before it ever reaches storage --
+        // defense in depth on top of the frontend's own JSX escaping.
+        landmark.setName(sanitizer.stripHtml(name));
+        landmark.setDescription(sanitizer.stripHtml(description));
+        landmark.setAddress(sanitizer.stripHtml(address));
         landmark.setLat(lat);
         landmark.setLng(lng);
         landmark.setImageUrl(imageUrl);
@@ -93,7 +105,7 @@ public class LandmarkService {
             return tags;
         }
         for (String raw : tagNames) {
-            String name = raw.trim().toLowerCase();
+            String name = sanitizer.stripHtml(raw).trim().toLowerCase();
             if (name.isEmpty()) {
                 continue;
             }

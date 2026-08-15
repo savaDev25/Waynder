@@ -4,7 +4,7 @@
 // Assumes Vite (import.meta.env.VITE_API_BASE_URL). If you're on Create
 // React App instead, swap this line for:
 //   const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || 'http://localhost:8080';
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080';
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000';
 
 export class ApiError extends Error {
   constructor(message, status, body) {

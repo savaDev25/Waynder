@@ -19,6 +19,14 @@ import requests
 
 OVERPASS_URL = "https://overpass-api.de/api/interpreter"
 
+# overpass-api.de rejects requests with no/generic User-Agent as an anti-bot
+# measure (returns 406 Not Acceptable). A descriptive agent with contact
+# info is what the server actually wants -- swap in your real email.
+OVERPASS_HEADERS = {
+    "User-Agent": "WaynderScraper/1.0 (student portfolio project; contact: saul05201655@gmail.com)",
+    "Accept": "application/json",
+}
+
 BBOX = "20.55,-103.50,20.80,-103.20"
 
 OVERPASS_QUERY = """
@@ -100,7 +108,9 @@ def normalize_element(element):
 
 
 def fetch_osm_landmarks():
-    response = requests.post(OVERPASS_URL, data={"data": OVERPASS_QUERY}, timeout=90)
+    response = requests.post(
+        OVERPASS_URL, data={"data": OVERPASS_QUERY}, headers=OVERPASS_HEADERS, timeout=90
+    )
     response.raise_for_status()
     elements = response.json().get("elements", [])
 
