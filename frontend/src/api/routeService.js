@@ -17,6 +17,12 @@ export const routeService = {
     return json.map(mapRoute);
   },
 
+  /** Public browse/discovery -- routes across all users, not just one. */
+  async listAll() {
+    const json = await apiClient.get('/api/routes');
+    return json.map(mapRoute);
+  },
+
   async getById(id) {
     const json = await apiClient.get(`/api/routes/${id}`);
     return mapRoute(json);

@@ -138,10 +138,10 @@ export default function HomePage() {
       <Box sx={{ bgcolor: '#fff', py: 6 }}>
         <Container maxWidth="lg">
           <Typography variant="h4" align="center" sx={{ fontWeight: 800, mb: 1, color: '#1a3a5c' }}>
-            Your GDL Journey
+            Your own Journey
           </Typography>
           <Typography variant="body1" align="center" sx={{ color: '#5a7a9a', mb: 5, maxWidth: 600, mx: 'auto' }}>
-            WonderGDL — la plataforma que combina turismo y movilidad para explorar Guadalajara de manera inteligente.
+            Waynder — la plataforma que combina turismo y movilidad para explorar Guadalajara de manera inteligente.
           </Typography>
 
           <Grid container spacing={4} >
@@ -286,9 +286,9 @@ export default function HomePage() {
         <Container maxWidth="lg">
           <Grid container spacing={3}>
             <Grid item xs={12} md={3}>
-              <Typography variant="h6" sx={{ fontWeight: 800, color: '#00b4d8', mb: 1 }}>WonderGDL</Typography>
+              <Typography variant="h6" sx={{ fontWeight: 800, color: '#00b4d8', mb: 1 }}>Waynder</Typography>
               <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.6)' }}>
-                La plataforma de turismo y movilidad para explorar Guadalajara.
+                La plataforma de turismo y movilidad para explorar el mundo.
               </Typography>
             </Grid>
             {[
@@ -306,7 +306,7 @@ export default function HomePage() {
           </Grid>
           <Divider sx={{ borderColor: 'rgba(255,255,255,0.1)', my: 2 }} />
           <Typography variant="caption" align="center" display="block" sx={{ color: 'rgba(255,255,255,0.4)' }}>
-            © 2026 WonderGDL — Universidad de Guadalajara · CUCEI · Hackathon Smart Mobility 26A
+            © 2026 Waynder — SavaDev
           </Typography>
         </Container>
       </Box>

@@ -1,8 +1,12 @@
 package com.savadev25.waynder.config;
 
+import com.savadev25.waynder.security.JwtAuthenticationFilter;
+import com.savadev25.waynder.security.JwtService;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpMethod;
+import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -17,37 +21,43 @@ import java.util.List;
 @Configuration
 public class SecurityConfig {
 
-    // Comma-separated list, configurable per environment (local dev vs. the
-    // real Vercel domain later) instead of hardcoded -- see application.properties.
     @Value("${cors.allowed-origins}")
     private String allowedOrigins;
 
-    // Used by UserService to hash passwords on registration -- never store
-    // or compare plain-text passwords.
     @Bean
     public PasswordEncoder passwordEncoder() {
         return new BCryptPasswordEncoder();
     }
 
-    // CSRF protection guards against browser/session-cookie attacks. This API
-    // is stateless and uses explicit headers (X-Ingest-Key for now, real user
-    // auth later) rather than cookies, so CSRF doesn't apply here -- disabling
-    // it is standard practice for stateless REST APIs.
-    //
-    // Access control itself is intentionally left to our own filters
-    // (IngestApiKeyFilter today) rather than Spring Security's authorization
-    // rules -- this permitAll() will be revisited once real user-facing
-    // endpoints with login exist.
-    //
-    // .cors(...) must be wired here, in the same chain -- Spring Security's
-    // filter runs before a standalone CORS config would, so registering CORS
-    // separately from this chain wouldn't actually take effect.
     @Bean
-    public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
+    public SecurityFilterChain securityFilterChain(HttpSecurity http, JwtService jwtService) throws Exception {
         http
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
                 .csrf(csrf -> csrf.disable())
-                .authorizeHttpRequests(auth -> auth.anyRequest().permitAll());
+                .authorizeHttpRequests(auth -> auth
+                        // Public: signing up and logging in obviously can't
+                        // require being already logged in.
+                        .requestMatchers(HttpMethod.POST, "/api/users/register").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/api/auth/login").permitAll()
+
+                        // Public: bulk scraper writes -- guarded separately
+                        // by IngestApiKeyFilter, not user JWTs at all.
+                        .requestMatchers(HttpMethod.POST, "/api/landmarks/ingest").permitAll()
+
+                        // Public: browsing landmarks/routes needs no account,
+                        // same as walking into a shop without logging in first.
+                        .requestMatchers(HttpMethod.GET, "/api/landmarks", "/api/landmarks/*").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/routes", "/api/routes/*").permitAll()
+
+                        // Everything else (creating/editing plans, routes,
+                        // user profiles, manually adding landmarks) requires
+                        // a valid JWT.
+                        .anyRequest().authenticated()
+                )
+                // Runs before Spring Security's own auth filter so our JWT
+                // (if present and valid) is what authorizeHttpRequests sees.
+                .addFilterBefore(new JwtAuthenticationFilter(jwtService), UsernamePasswordAuthenticationFilter.class);
+
         return http.build();
     }
 

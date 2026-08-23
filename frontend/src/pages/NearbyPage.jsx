@@ -1,145 +1,166 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   Box, Paper, Typography, Checkbox, FormControlLabel, TextField,
-  Button, Chip, CircularProgress, Card, CardMedia, CardContent,
-  Divider, Tab, Tabs, IconButton,
+  Button, Chip, CircularProgress, Alert, Tab, Tabs,
 } from '@mui/material';
 import SearchIcon from '@mui/icons-material/Search';
-import FilterListIcon from '@mui/icons-material/FilterList';
-import AddCircleOutlineIcon from '@mui/icons-material/AddCircleOutlined';
 import MapIcon from '@mui/icons-material/Map';
+import AddCircleOutlineIcon from '@mui/icons-material/AddCircleOutlined';
+import MyLocationIcon from '@mui/icons-material/MyLocation';
 import Navbar from '../components/Navbar';
 import MapComponent from '../components/MapComponent';
-import { placesService } from '../services/placesService';
+import { landmarkService } from '../api';
+import { haversineKm, formatDistance } from '../utils/distance';
 
-const CATEGORIES = [
-  { id: 'cultural', label: 'Cultural Sites', icon: '🏛️' },
-  { id: 'museum', label: 'Museums', icon: '🎨' },
-  { id: 'park', label: 'Parks & Gardens', icon: '🌳' },
-  { id: 'dining', label: 'Dining', icon: '🍽️' },
-  { id: 'tequila', label: 'Tequila Experiences', icon: '🥃' },
-  { id: 'boutique', label: 'Boutique Shops', icon: '🛍️' },
-  { id: 'landmark', label: 'Historic Landmarks', icon: '🏰' },
-];
+const TAG_ICONS = {
+  museum: '🎨', attraction: '📍', art: '🖼️', viewpoint: '👀', nature: '🌳', historical: '🏛️',
+};
+const FALLBACK_ICON = '📍';
 
-const NEARBY_PLACES = [
-  {
-    id: 1, name: 'Hospicio Cabañas Mural', category: 'Museum',
-    description: 'World Heritage Site with murals by José Clemente Orozco.',
-    lat: 20.6677, lng: -103.3428,
-    image: 'https://upload.wikimedia.org/wikipedia/commons/thumb/1/11/Hospicio_Caba%C3%B1as%2C_Guadalajara.jpg/320px-Hospicio_Caba%C3%B1as%2C_Guadalajara.jpg',
-    rating: 4.8, color: '#9b59b6',
-  },
-  {
-    id: 2, name: 'Bosque Colomos', category: 'Park',
-    description: 'Parque urbano natural en el corazón de Guadalajara.',
-    lat: 20.6932, lng: -103.3947,
-    image: 'https://upload.wikimedia.org/wikipedia/commons/thumb/6/6a/Bosque_La_Primavera.jpg/320px-Bosque_La_Primavera.jpg',
-    rating: 4.6, color: '#2ecc71',
-  },
-  {
-    id: 3, name: 'Birrieria las Nueve Esquinas', category: 'Dining',
-    description: 'Iconic birria restaurant in a historic neighborhood.',
-    lat: 20.6571, lng: -103.3494,
-    image: 'https://upload.wikimedia.org/wikipedia/commons/thumb/d/d3/Birria_de_res.jpg/320px-Birria_de_res.jpg',
-    rating: 4.7, color: '#e67e22',
-  },
-  {
-    id: 4, name: 'Historic Center', category: 'Historic Landmark',
-    description: 'Centro histórico con la catedral y principales monumentos.',
-    lat: 20.6597, lng: -103.3496,
-    image: 'https://upload.wikimedia.org/wikipedia/commons/thumb/8/8e/Catedral_de_Guadalajara%2C_Mexico%2C_2013-10-11%2C_DD_01.JPG/320px-Catedral_de_Guadalajara%2C_Mexico%2C_2013-10-11%2C_DD_01.JPG',
-    rating: 4.9, color: '#1a3a5c',
-  },
-  {
-    id: 5, name: 'Tlaquepaque Artisan Market', category: 'Boutique Shops',
-    description: 'Mercado de artesanías con cerámica, vidrio y más.',
-    lat: 20.6432, lng: -103.3175,
-    image: 'https://upload.wikimedia.org/wikipedia/commons/thumb/3/3c/Tlaquepaque_market.jpg/320px-Tlaquepaque_market.jpg',
-    rating: 4.7, color: '#e74c3c',
-  },
-  {
-    id: 6, name: 'Destilería Tequila', category: 'Tequila Experiences',
-    description: 'Visita una destilería y conoce el proceso del tequila.',
-    lat: 20.8780, lng: -103.8341,
-    image: 'https://upload.wikimedia.org/wikipedia/commons/thumb/d/da/Jimadores.jpg/320px-Jimadores.jpg',
-    rating: 4.5, color: '#f39c12',
-  },
-];
+// Guadalajara centro -- used only if the browser denies/lacks geolocation,
+// so "nearby" still means something instead of the page just breaking.
+const FALLBACK_ORIGIN = { lat: 20.6597, lng: -103.3496 };
 
 const handleImgError = (e, name, color = '00b4d8') => {
-  e.target.onerror = null; 
+  e.target.onerror = null;
   const cleanColor = color.replace('#', '');
   e.target.src = `https://placehold.co/600x400/${cleanColor}/FFFFFF?text=${encodeURIComponent(name)}`;
 };
 
 export default function NearbyPage() {
-  const [selectedCategories, setSelectedCategories] = useState([]);
+  const navigate = useNavigate();
+
+  const [landmarks, setLandmarks] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  const [origin, setOrigin] = useState(null);
+  const [locating, setLocating] = useState(true);
+  const [usedFallbackOrigin, setUsedFallbackOrigin] = useState(false);
+
+  const [selectedTags, setSelectedTags] = useState([]);
   const [searchQuery, setSearchQuery] = useState('');
-  const [sideTab, setSideTab] = useState(0);
-  const [loading, setLoading] = useState(false);
-  const [places, setPlaces] = useState(NEARBY_PLACES);
+  const [mapCenter, setMapCenter] = useState([FALLBACK_ORIGIN.lat, FALLBACK_ORIGIN.lng]);
+  const [mapZoom, setMapZoom] = useState(12);
 
-  const filteredPlaces = places.filter((p) => {
-    const matchCat = selectedCategories.length === 0 ||
-      selectedCategories.some((c) => p.category.toLowerCase().includes(c));
-    const matchSearch = !searchQuery ||
-      p.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      p.description.toLowerCase().includes(searchQuery.toLowerCase());
-    return matchCat && matchSearch;
-  });
+  useEffect(() => {
+    let cancelled = false;
+    landmarkService
+      .search()
+      .then((r) => { if (!cancelled) setLandmarks(r); })
+      .catch((err) => { if (!cancelled) setError(err.message || 'Failed to load places'); })
+      .finally(() => { if (!cancelled) setLoading(false); });
+    return () => { cancelled = true; };
+  }, []);
 
-  const toggleCategory = (catId) => {
-    setSelectedCategories((prev) =>
-      prev.includes(catId) ? prev.filter((c) => c !== catId) : [...prev, catId]
-    );
-  };
-
-  const handleAddToTrip = async (placeId) => {
-    try {
-      // Real call: await placesService.addToTrip(placeId, currentTripId);
-      console.log('Added to trip:', placeId);
-    } catch (err) {
-      console.error(err);
+  // Real device location -- this is what makes "nearby" actually mean
+  // something, instead of a fixed list of places around one hardcoded point.
+  useEffect(() => {
+    if (!navigator.geolocation) {
+      setOrigin(FALLBACK_ORIGIN);
+      setUsedFallbackOrigin(true);
+      setLocating(false);
+      return;
     }
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        const real = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+        setOrigin(real);
+        setMapCenter([real.lat, real.lng]);
+        setLocating(false);
+      },
+      () => {
+        setOrigin(FALLBACK_ORIGIN);
+        setUsedFallbackOrigin(true);
+        setLocating(false);
+      },
+      { timeout: 8000 }
+    );
+  }, []);
+
+  // Categories are whatever tags actually exist in the data, same approach
+  // as ExplorePage -- not a fixed list that may not match real content.
+  const availableTags = useMemo(() => {
+    const set = new Set();
+    landmarks.forEach((l) => (l.tags || []).forEach((t) => set.add(t)));
+    return Array.from(set).sort();
+  }, [landmarks]);
+
+  const withDistance = useMemo(() => {
+    if (!origin) return [];
+    return landmarks.map((l) => ({ ...l, distanceKm: haversineKm(origin.lat, origin.lng, l.lat, l.lng) }));
+  }, [landmarks, origin]);
+
+  const filtered = withDistance
+    .filter((p) => {
+      const matchTag = selectedTags.length === 0 || selectedTags.some((t) => (p.tags || []).includes(t));
+      const haystack = `${p.name} ${p.description || ''}`.toLowerCase();
+      const matchSearch = !searchQuery || haystack.includes(searchQuery.toLowerCase());
+      return matchTag && matchSearch;
+    })
+    .sort((a, b) => a.distanceKm - b.distanceKm);
+
+  const toggleTag = (tag) => {
+    setSelectedTags((prev) => (prev.includes(tag) ? prev.filter((t) => t !== tag) : [...prev, tag]));
   };
 
-  const markers = filteredPlaces.map((p) => ({
-    lat: p.lat, lng: p.lng, label: p.name, icon: CATEGORIES.find(c => p.category.toLowerCase().includes(c.id))?.icon || '📍', color: p.color,
+  // Hands off to the route builder with this landmark pre-added as a stop --
+  // PlanTripPage reads ?addLandmark= on mount (see PlanTripPage.jsx).
+  const handleAddToTrip = (placeId) => {
+    navigate(`/plan?addLandmark=${placeId}`);
+  };
+
+  const handleViewOnMap = (place) => {
+    setMapCenter([place.lat, place.lng]);
+    setMapZoom(15);
+  };
+
+  const markers = filtered.map((p) => ({
+    lat: p.lat, lng: p.lng, label: p.name,
+    icon: TAG_ICONS[(p.tags || [])[0]] || FALLBACK_ICON, color: '#1a3a5c',
   }));
+  if (origin) {
+    markers.unshift({ lat: origin.lat, lng: origin.lng, label: 'You are here', icon: '📍', color: '#e74c3c' });
+  }
 
   return (
     <Box sx={{ mt: '60px', display: 'flex', height: 'calc(100vh - 60px)', overflow: 'hidden' }}>
       <Navbar />
 
       {/* LEFT: Filters */}
-      <Box sx={{ width: 240, flexShrink: 0, overflow: 'auto', borderRight: '1px solid #e0e0e0', background: '#fff', p: 0 }}>
+      <Box sx={{ width: 240, flexShrink: 0, overflow: 'auto', borderRight: '1px solid #e0e0e0', background: '#fff' }}>
         <Paper elevation={0} sx={{ p: 2 }}>
           <Typography variant="h6" sx={{ fontWeight: 800, color: '#1a3a5c', mb: 2, fontSize: '0.95rem', letterSpacing: '0.08em' }}>
             FILTER BY CATEGORY
           </Typography>
-          {CATEGORIES.map((cat) => (
-            <FormControlLabel
-              key={cat.id}
-              control={
-                <Checkbox
-                  size="small"
-                  checked={selectedCategories.includes(cat.id)}
-                  onChange={() => toggleCategory(cat.id)}
-                  sx={{ color: '#00b4d8', '&.Mui-checked': { color: '#00b4d8' } }}
-                />
-              }
-              label={
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                  <span>{cat.icon}</span>
-                  <Typography variant="body2" sx={{ fontWeight: selectedCategories.includes(cat.id) ? 700 : 400 }}>
-                    {cat.label}
-                  </Typography>
-                </Box>
-              }
-              sx={{ display: 'flex', mb: 0.5 }}
-            />
-          ))}
+
+          {availableTags.length === 0 ? (
+            <Typography variant="caption" sx={{ color: '#999' }}>No categories yet.</Typography>
+          ) : (
+            availableTags.map((tag) => (
+              <FormControlLabel
+                key={tag}
+                control={
+                  <Checkbox
+                    size="small"
+                    checked={selectedTags.includes(tag)}
+                    onChange={() => toggleTag(tag)}
+                    sx={{ color: '#00b4d8', '&.Mui-checked': { color: '#00b4d8' } }}
+                  />
+                }
+                label={
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                    <span>{TAG_ICONS[tag] || FALLBACK_ICON}</span>
+                    <Typography variant="body2" sx={{ fontWeight: selectedTags.includes(tag) ? 700 : 400 }}>
+                      {tag}
+                    </Typography>
+                  </Box>
+                }
+                sx={{ display: 'flex', mb: 0.5 }}
+              />
+            ))
+          )}
 
           <TextField
             fullWidth placeholder="Search" size="small" sx={{ mt: 2 }}
@@ -147,26 +168,27 @@ export default function NearbyPage() {
             onChange={(e) => setSearchQuery(e.target.value)}
             InputProps={{ endAdornment: <SearchIcon sx={{ color: '#999', fontSize: 18 }} /> }}
           />
+
+          {locating && (
+            <Alert severity="info" icon={<MyLocationIcon fontSize="small" />} sx={{ mt: 2, fontSize: '0.72rem' }}>
+              Getting your location...
+            </Alert>
+          )}
+          {!locating && usedFallbackOrigin && (
+            <Alert severity="warning" sx={{ mt: 2, fontSize: '0.72rem' }}>
+              Location unavailable — showing distances from Centro.
+            </Alert>
+          )}
         </Paper>
       </Box>
 
       {/* CENTER: Map + overlay */}
       <Box sx={{ flex: 1, position: 'relative' }}>
-        <MapComponent
-          height="100%"
-          markers={markers}
-          center={[20.6597, -103.3496]}
-          zoom={12}
-        />
+        <MapComponent height="100%" markers={markers} center={mapCenter} zoom={mapZoom} />
 
-        {/* Explore Nearby overlay */}
         <Paper
           elevation={8}
-          sx={{
-            position: 'absolute', top: 16, right: 16, width: 280,
-            maxHeight: 'calc(100% - 32px)', overflow: 'auto',
-            borderRadius: 3, zIndex: 1000,
-          }}
+          sx={{ position: 'absolute', top: 16, right: 16, width: 280, maxHeight: 'calc(100% - 32px)', overflow: 'auto', borderRadius: 3, zIndex: 1000 }}
         >
           <Box sx={{ p: 2, background: 'linear-gradient(135deg, #1a3a5c, #2d5a8c)', borderRadius: '12px 12px 0 0' }}>
             <Typography variant="h6" sx={{ color: '#fff', fontWeight: 800, fontSize: '1rem', textAlign: 'center' }}>
@@ -174,44 +196,52 @@ export default function NearbyPage() {
             </Typography>
           </Box>
 
-          {filteredPlaces.map((place) => (
-            <Box key={place.id} sx={{ borderBottom: '1px solid #f0f0f0' }}>
-              <Box sx={{ display: 'flex', gap: 1.5, p: 1.5 }}>
-                <Box
-                  sx={{ width: 72, height: 60, borderRadius: 1.5, overflow: 'hidden', flexShrink: 0 }}
-                >
-                  <img
-                    src={place.image} alt={place.name}
-                    style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-                    onError={(e) => handleImgError(e, place.name)}                   
+          {loading ? (
+            <Box sx={{ display: 'flex', justifyContent: 'center', py: 3 }}><CircularProgress size={24} /></Box>
+          ) : filtered.length === 0 ? (
+            <Typography variant="body2" sx={{ p: 2, color: '#999', textAlign: 'center' }}>No places found.</Typography>
+          ) : (
+            filtered.map((place) => (
+              <Box key={place.id} sx={{ borderBottom: '1px solid #f0f0f0' }}>
+                <Box sx={{ display: 'flex', gap: 1.5, p: 1.5 }}>
+                  <Box sx={{ width: 72, height: 60, borderRadius: 1.5, overflow: 'hidden', flexShrink: 0 }}>
+                    <img
+                      src={place.imageUrl || `https://placehold.co/600x400/00b4d8/FFFFFF?text=${encodeURIComponent(place.name)}`}
+                      alt={place.name}
+                      style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                      onError={(e) => handleImgError(e, place.name)}
                     />
+                  </Box>
+                  <Box sx={{ flex: 1, minWidth: 0 }}>
+                    <Typography variant="body2" sx={{ fontWeight: 700, color: '#1a3a5c', lineHeight: 1.2, mb: 0.3 }}>
+                      {place.name}
+                    </Typography>
+                    <Typography variant="caption" sx={{ color: '#666', display: 'block', mb: 0.5, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      {place.description || 'No description available.'}
+                    </Typography>
+                    <Box sx={{ display: 'flex', gap: 0.5, alignItems: 'center' }}>
+                      {(place.tags || [])[0] && <Chip label={place.tags[0]} size="small" sx={{ fontSize: '0.6rem', height: 18 }} />}
+                      <Chip label={formatDistance(place.distanceKm)} size="small" sx={{ fontSize: '0.6rem', height: 18, bgcolor: '#e3f4f8', color: '#1a3a5c', fontWeight: 700 }} />
+                    </Box>
+                  </Box>
                 </Box>
-                <Box sx={{ flex: 1, minWidth: 0 }}>
-                  <Typography variant="body2" sx={{ fontWeight: 700, color: '#1a3a5c', lineHeight: 1.2, mb: 0.3 }}>
-                    {place.name}
-                  </Typography>
-                  <Typography variant="caption" sx={{ color: '#666', display: 'block', mb: 0.5, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                    {place.description}
-                  </Typography>
-                  <Chip label={place.category} size="small" sx={{ fontSize: '0.6rem', height: 18, bgcolor: `${place.color}20`, color: place.color, fontWeight: 600 }} />
+                <Box sx={{ display: 'flex', gap: 1, px: 1.5, pb: 1.5 }}>
+                  <Button size="small" variant="outlined" startIcon={<MapIcon />}
+                    onClick={() => handleViewOnMap(place)}
+                    sx={{ fontSize: '0.65rem', py: 0.3, color: '#00b4d8', borderColor: '#00b4d8' }}>
+                    View on Map
+                  </Button>
+                  <Button size="small" variant="contained" startIcon={<AddCircleOutlineIcon />}
+                    onClick={() => handleAddToTrip(place.id)}
+                    sx={{ fontSize: '0.65rem', py: 0.3, background: '#00b4d8' }}>
+                    Add to Trip
+                  </Button>
                 </Box>
               </Box>
-              <Box sx={{ display: 'flex', gap: 1, px: 1.5, pb: 1.5 }}>
-                <Button size="small" variant="outlined" startIcon={<MapIcon />}
-                  sx={{ fontSize: '0.65rem', py: 0.3, color: '#00b4d8', borderColor: '#00b4d8' }}>
-                  View on Map
-                </Button>
-                <Button size="small" variant="contained" startIcon={<AddCircleOutlineIcon />}
-                  onClick={() => handleAddToTrip(place.id)}
-                  sx={{ fontSize: '0.65rem', py: 0.3, background: '#00b4d8' }}>
-                  Add to Trip
-                </Button>
-              </Box>
-            </Box>
-          ))}
+            ))
+          )}
         </Paper>
 
-        {/* Header */}
         <Box sx={{ position: 'absolute', top: 16, left: 16, zIndex: 500 }}>
           <Paper elevation={4} sx={{ px: 3, py: 1.5, borderRadius: 3, background: 'rgba(255,255,255,0.95)', backdropFilter: 'blur(8px)' }}>
             <Typography variant="h5" sx={{ fontWeight: 800, color: '#1a3a5c' }}>
@@ -223,36 +253,34 @@ export default function NearbyPage() {
 
       {/* RIGHT: Sidebar list */}
       <Box sx={{ width: 320, flexShrink: 0, overflow: 'auto', borderLeft: '1px solid #e0e0e0', background: '#fff' }}>
-        <Tabs value={sideTab} onChange={(_, v) => setSideTab(v)} sx={{ borderBottom: '1px solid #e0e0e0', minHeight: 48 }}>
-          <Tab label="Itinerary" sx={{ fontWeight: 600, fontSize: '0.82rem', minHeight: 48 }} />
+        <Tabs value={0} sx={{ borderBottom: '1px solid #e0e0e0', minHeight: 48 }}>
           <Tab label="Nearby" sx={{ fontWeight: 600, fontSize: '0.82rem', minHeight: 48 }} />
-          <Tab label="Saved Routes" sx={{ fontWeight: 600, fontSize: '0.82rem', minHeight: 48 }} />
         </Tabs>
 
-        {/* Filter by Category dropdown */}
-        <Box sx={{ p: 1.5, borderBottom: '1px solid #f0f0f0' }}>
-          <Button fullWidth variant="outlined" endIcon={<FilterListIcon />}
-            sx={{ justifyContent: 'space-between', textTransform: 'none', borderColor: '#e0e0e0', color: '#444' }}>
-            Filter by Category
-          </Button>
-        </Box>
+        {error && <Alert severity="error" sx={{ m: 2 }}>{error}</Alert>}
 
-        {filteredPlaces.map((place) => (
+        {filtered.map((place) => (
           <Box key={place.id} sx={{ borderBottom: '1px solid #f5f5f5', display: 'flex', gap: 1.5, p: 1.5 }}>
             <Box sx={{ width: 80, height: 68, borderRadius: 1.5, overflow: 'hidden', flexShrink: 0 }}>
               <img
-                src={place.image} alt={place.name}
+                src={place.imageUrl || `https://placehold.co/600x400/00b4d8/FFFFFF?text=${encodeURIComponent(place.name)}`}
+                alt={place.name}
                 style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-                onError={(e) => handleImgError(e, place.name)}/>
+                onError={(e) => handleImgError(e, place.name)}
+              />
             </Box>
             <Box sx={{ flex: 1 }}>
               <Typography variant="body2" sx={{ fontWeight: 700, color: '#1a3a5c', mb: 0.3 }}>{place.name}</Typography>
-              <Typography variant="caption" sx={{ color: '#666', display: 'block', mb: 0.5 }}>{place.description.substring(0, 55)}...</Typography>
-              <Chip label={place.category} size="small" sx={{ fontSize: '0.6rem', height: 18, mb: 0.5, bgcolor: `${place.color}15`, color: place.color }} />
+              <Typography variant="caption" sx={{ color: '#666', display: 'block', mb: 0.5 }}>
+                {(place.description || 'No description available.').substring(0, 55)}...
+              </Typography>
+              <Box sx={{ display: 'flex', gap: 0.5, mb: 0.5 }}>
+                {(place.tags || [])[0] && <Chip label={place.tags[0]} size="small" sx={{ fontSize: '0.6rem', height: 18 }} />}
+                <Chip label={formatDistance(place.distanceKm)} size="small" sx={{ fontSize: '0.6rem', height: 18, bgcolor: '#e3f4f8', color: '#1a3a5c' }} />
+              </Box>
               <Box sx={{ display: 'flex', gap: 0.5 }}>
-                <Button size="small" sx={{ fontSize: '0.6rem', py: 0.2, px: 0.8, color: '#00b4d8', border: '1px solid #00b4d8', minWidth: 'auto' }}>View on Map</Button>
-                <Button size="small" sx={{ fontSize: '0.6rem', py: 0.2, px: 0.8, color: '#fff', background: '#00b4d8', minWidth: 'auto', '&:hover': { background: '#0077b6' } }}
-                  onClick={() => handleAddToTrip(place.id)}>Add to Trip</Button>
+                <Button size="small" onClick={() => handleViewOnMap(place)} sx={{ fontSize: '0.6rem', py: 0.2, px: 0.8, color: '#00b4d8', border: '1px solid #00b4d8', minWidth: 'auto' }}>View on Map</Button>
+                <Button size="small" onClick={() => handleAddToTrip(place.id)} sx={{ fontSize: '0.6rem', py: 0.2, px: 0.8, color: '#fff', background: '#00b4d8', minWidth: 'auto', '&:hover': { background: '#0077b6' } }}>Add to Trip</Button>
               </Box>
             </Box>
           </Box>

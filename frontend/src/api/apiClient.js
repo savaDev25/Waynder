@@ -1,10 +1,21 @@
-// Central place all API calls go through -- base URL, JSON handling, and
-// error shape all live here so individual services stay short.
+// Central place all API calls go through -- base URL, JSON handling, auth
+// header, and error shape all live here so individual services stay short.
 
 // Assumes Vite (import.meta.env.VITE_API_BASE_URL). If you're on Create
 // React App instead, swap this line for:
 //   const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || 'http://localhost:8080';
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000';
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080';
+
+// Bearer-token-in-localStorage, not an httpOnly cookie. Deliberate trade-off:
+// this app's frontend (Vercel) and backend (Render) are on different
+// domains, and cross-domain cookies need SameSite=None; Secure, which
+// reintroduces CSRF concerns and gets unreliable with browsers' third-party
+// cookie restrictions. Bearer tokens avoid all of that at the cost of being
+// readable by any script running on the page -- which is exactly why
+// InputSanitizer strips HTML/script content from stored landmark data on
+// the backend: that's the real mitigation for the XSS risk this trade-off
+// accepts.
+const TOKEN_KEY = 'waynder_token';
 
 export class ApiError extends Error {
   constructor(message, status, body) {
@@ -16,10 +27,13 @@ export class ApiError extends Error {
 }
 
 async function request(path, { method = 'GET', body, headers = {} } = {}) {
+  const token = localStorage.getItem(TOKEN_KEY);
+
   const response = await fetch(`${API_BASE_URL}${path}`, {
     method,
     headers: {
       'Content-Type': 'application/json',
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
       ...headers,
     },
     body: body !== undefined ? JSON.stringify(body) : undefined,

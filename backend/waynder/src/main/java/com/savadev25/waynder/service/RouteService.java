@@ -59,6 +59,14 @@ public class RouteService {
                 .collect(Collectors.toList());
     }
 
+    // Public browse/discovery -- e.g. a "tourism routes" page showing routes
+    // other users have built, not scoped to any one user.
+    public List<RouteResponseDTO> listAll() {
+        return routeRepository.findAll().stream()
+                .map(this::toResponse)
+                .collect(Collectors.toList());
+    }
+
     public RouteResponseDTO getById(UUID id) {
         return toResponse(findOrThrow(id));
     }

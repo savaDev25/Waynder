@@ -52,8 +52,8 @@ export default function Navbar() {
         >
           <Box
             component="img"
-            src="Wonder GDL Logo.png"
-            alt="WonderGDL"
+            src="Waynder_Logo.png"
+            alt="Waynder"
             sx={{ width: 36, height: 36 }}
             onError={(e) => {
               e.target.style.display = 'none';
@@ -65,7 +65,7 @@ export default function Navbar() {
               variant="caption"
               sx={{ color: '#00b4d8', fontWeight: 800, fontSize: '1.2rem', letterSpacing: '0.15em', display: 'block', lineHeight: 1 }}
             >
-              WonderGDL
+              Waynder
             </Typography>
             
           </Box>
