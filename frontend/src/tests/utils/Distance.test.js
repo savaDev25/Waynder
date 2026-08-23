@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { haversineKm, formatDistance } from '../distance';
+import { haversineKm, formatDistance } from '../../utils/Distance';
 
 describe('haversineKm', () => {
   it('returns ~0 for the same point', () => {

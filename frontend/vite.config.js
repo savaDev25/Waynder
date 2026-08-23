@@ -29,7 +29,7 @@ export default defineConfig({
     port: 5174,
   },
   test: {
-    environment: 'node',
+    environment: 'jsdom',
     include: ['src/**/*.test.js'],
     reporters: reporters
   }
