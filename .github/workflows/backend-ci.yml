@@ -60,4 +60,6 @@ jobs:
           -Dspring.datasource.url=jdbc:postgresql://localhost:5432/waynder_db
           -Dspring.datasource.username=waynder
           -Dspring.datasource.password=waynder_dev
+          -Djwt.secret=ci-only-throwaway-secret-never-used-outside-this-workflow-32bytes+
+          -Dcors.allowed-origins=http://localhost:3000
           -Drp.enable=false
