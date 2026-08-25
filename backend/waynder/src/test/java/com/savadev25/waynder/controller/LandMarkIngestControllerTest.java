@@ -1,6 +1,7 @@
 package com.savadev25.waynder.controller;
 
 import com.savadev25.waynder.dto.LandmarkIngestDTO;
+import com.savadev25.waynder.security.JwtService;
 import com.savadev25.waynder.service.LandmarkIngestService;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -21,7 +22,10 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 // IngestApiKeyFilter is a plain @Component implementing Filter, so @WebMvcTest
 // picks it up automatically alongside the controller -- this exercises the
-// real auth check, not a mocked one.
+// real auth check, not a mocked one. POST /api/landmarks/ingest is explicitly
+// permitAll in SecurityConfig (guarded by IngestApiKeyFilter instead), so
+// unlike other controllers' tests, no JWT authentication() post-processor
+// is needed on any request here.
 @WebMvcTest(LandmarkIngestController.class)
 @Import(com.savadev25.waynder.config.SecurityConfig.class)
 @TestPropertySource(properties = "ingest.api-key=test-secret-key")
@@ -35,6 +39,11 @@ class LandmarkIngestControllerTest {
 
     @MockitoBean
     private LandmarkIngestService landmarkIngestService;
+
+    // Satisfies SecurityConfig's dependency so the context builds -- see
+    // UserControllerTest for the full explanation. Unused otherwise here.
+    @MockitoBean
+    private JwtService jwtService;
 
     private List<LandmarkIngestDTO> validPayload() {
         LandmarkIngestDTO dto = new LandmarkIngestDTO();

@@ -4,12 +4,14 @@ import com.savadev25.waynder.config.SecurityConfig;
 import com.savadev25.waynder.dto.LandmarkCreateDTO;
 import com.savadev25.waynder.dto.LandmarkResponseDTO;
 import com.savadev25.waynder.exception.ResourceNotFoundException;
+import com.savadev25.waynder.security.JwtService;
 import com.savadev25.waynder.service.LandmarkService;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 import tools.jackson.databind.json.JsonMapper;
@@ -21,6 +23,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.when;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.authentication;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
@@ -37,6 +40,12 @@ class LandmarkControllerTest {
     @MockitoBean
     private LandmarkService landmarkService;
 
+    // See UserControllerTest for why this is needed even though its methods
+    // are never stubbed -- SecurityConfig just needs a bean of this type to
+    // build; authenticated requests below inject a principal directly.
+    @MockitoBean
+    private JwtService jwtService;
+
     private LandmarkCreateDTO validCreateDto() {
         LandmarkCreateDTO dto = new LandmarkCreateDTO();
         dto.setName("Bosque Los Colomos");
@@ -44,6 +53,12 @@ class LandmarkControllerTest {
         dto.setLng(-103.3803);
         dto.setTags(List.of("nature"));
         return dto;
+    }
+
+    private UsernamePasswordAuthenticationToken anyAuthenticatedUser() {
+        // Landmark write endpoints only require SOME valid login, not
+        // ownership of a specific resource -- any principal works.
+        return new UsernamePasswordAuthenticationToken(UUID.randomUUID().toString(), null, List.of());
     }
 
     @Test
@@ -72,6 +87,14 @@ class LandmarkControllerTest {
     }
 
     @Test
+    void create_returnsUnauthorized_whenNoAuth() throws Exception {
+        mockMvc.perform(post("/api/landmarks")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(jsonMapper.writeValueAsString(validCreateDto())))
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
     void create_returnsCreated_withValidPayload() throws Exception {
         UUID id = UUID.randomUUID();
         when(landmarkService.create(any())).thenReturn(
@@ -79,6 +102,7 @@ class LandmarkControllerTest {
         );
 
         mockMvc.perform(post("/api/landmarks")
+                        .with(authentication(anyAuthenticatedUser()))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(jsonMapper.writeValueAsString(validCreateDto())))
                 .andExpect(status().isCreated())
@@ -91,16 +115,17 @@ class LandmarkControllerTest {
         dto.setName(null);
 
         mockMvc.perform(post("/api/landmarks")
+                        .with(authentication(anyAuthenticatedUser()))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(jsonMapper.writeValueAsString(dto)))
                 .andExpect(status().isBadRequest());
     }
 
     @Test
-    void delete_returnsNoContent() throws Exception {
+    void delete_returnsNoContent_whenAuthenticated() throws Exception {
         UUID id = UUID.randomUUID();
 
-        mockMvc.perform(delete("/api/landmarks/{id}", id))
+        mockMvc.perform(delete("/api/landmarks/{id}", id).with(authentication(anyAuthenticatedUser())))
                 .andExpect(status().isNoContent());
     }
 }

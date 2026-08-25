@@ -2,6 +2,7 @@ package com.savadev25.waynder.config;
 
 import com.savadev25.waynder.security.JwtAuthenticationFilter;
 import com.savadev25.waynder.security.JwtService;
+import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -34,6 +35,18 @@ public class SecurityConfig {
         http
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
                 .csrf(csrf -> csrf.disable())
+                // Without httpBasic()/formLogin(), Spring Security has no
+                // AuthenticationEntryPoint configured by default and falls
+                // back to returning 403 for EVERY auth failure -- including
+                // a request with no token at all, which should be 401 (who
+                // are you?) rather than 403 (you're not allowed). This
+                // restores that distinction; AccessDeniedException thrown
+                // later inside a controller (AuthorizationUtil.requireSelf,
+                // valid token but wrong user) still reaches
+                // GlobalExceptionHandler and correctly returns 403.
+                .exceptionHandling(handling -> handling.authenticationEntryPoint(
+                        (request, response, authException) -> response.sendError(HttpServletResponse.SC_UNAUTHORIZED)
+                ))
                 .authorizeHttpRequests(auth -> auth
                         // Public: signing up and logging in obviously can't
                         // require being already logged in.
@@ -48,6 +61,7 @@ public class SecurityConfig {
                         // same as walking into a shop without logging in first.
                         .requestMatchers(HttpMethod.GET, "/api/landmarks", "/api/landmarks/*").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/routes", "/api/routes/*").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/recommendations/**").permitAll()
 
                         // Everything else (creating/editing plans, routes,
                         // user profiles, manually adding landmarks) requires
