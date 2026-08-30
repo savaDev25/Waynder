@@ -5,14 +5,14 @@ import {
   Tab, Tabs, Chip, CircularProgress, Alert, IconButton, Snackbar,
 } from '@mui/material';
 import SaveIcon from '@mui/icons-material/Save';
-import DeleteOutlinedIcon from '@mui/icons-material/DeleteOutlined';
+import DeleteOutlineOutlinedIcon from '@mui/icons-material/DeleteOutlineOutlined';
 import VisibilityIcon from '@mui/icons-material/Visibility';
 import LocationOnIcon from '@mui/icons-material/LocationOn';
 import Navbar from '../components/Navbar';
 import RouteMapPreview from '../components/routes/RouteMapPreview';
 import StopSelector from '../components/routes/StopSelector';
 import RecommendedLandmarksPanel from '../components/recomendations/RecommendedLandmarksPanel';
-import { routeService } from '../api';
+import { routeService, landmarkService } from '../api';
 import { useCurrentUser } from '../hooks/useCurrentUser';
 
 const STOP_LETTER = (i) => String.fromCharCode(65 + (i % 26));
@@ -47,10 +47,23 @@ export default function PlanTripPage() {
   // Coming from TourismPage's "Start Here" / "Plan This Route" (?route=<id>):
   // load that route straight into the builder, same as clicking 👁️ on a
   // saved route below.
+  //
+  // Coming from NearbyPage's "Add to Trip" (?addLandmark=<id>): fetch that
+  // one landmark and add it as a stop, without discarding whatever's
+  // already being built.
   useEffect(() => {
     const routeId = searchParams.get('route');
+    const landmarkId = searchParams.get('addLandmark');
+
     if (routeId) {
       handleViewSaved(routeId);
+    } else if (landmarkId) {
+      landmarkService
+        .getById(landmarkId)
+        .then((landmark) => {
+          setStops((prev) => (prev.some((s) => s.id === landmark.id) ? prev : [...prev, landmark]));
+        })
+        .catch((err) => setSnackbar({ open: true, msg: err.message || 'Failed to add place', severity: 'error' }));
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -148,7 +161,10 @@ export default function PlanTripPage() {
         </Paper>
 
         <Box sx={{ p: 2 }}>
-          <RecommendedLandmarksPanel />
+          <RecommendedLandmarksPanel
+            basedOnIds={stops.map((s) => s.id)}
+            onAdd={(landmark) => setStops((prev) => (prev.some((s) => s.id === landmark.id) ? prev : [...prev, landmark]))}
+          />
         </Box>
       </Box>
 
@@ -232,7 +248,7 @@ export default function PlanTripPage() {
                       <VisibilityIcon fontSize="small" sx={{ color: '#00b4d8' }} />
                     </IconButton>
                     <IconButton size="small" onClick={() => handleDeleteSaved(r.id)}>
-                      <DeleteOutlineIcon fontSize="small" sx={{ color: '#e74c3c' }} />
+                      <DeleteOutlineOutlinedIcon fontSize="small" sx={{ color: '#e74c3c' }} />
                     </IconButton>
                   </Box>
                 </Box>

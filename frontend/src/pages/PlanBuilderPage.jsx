@@ -164,7 +164,13 @@ export default function PlanBuilderPage() {
         <Divider />
 
         <Box sx={{ p: 2, display: 'flex', flexDirection: 'column', gap: 2 }}>
-          <RecommendedLandmarksPanel />
+          <RecommendedLandmarksPanel
+            basedOnIds={currentDay.stops.map((s) => s.id)}
+            onAdd={(landmark) => updateDayStops(
+              activeDay,
+              currentDay.stops.some((s) => s.id === landmark.id) ? currentDay.stops : [...currentDay.stops, landmark]
+            )}
+          />
           <RecommendedRoutesPanel />
         </Box>
 

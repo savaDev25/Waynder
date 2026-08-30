@@ -74,7 +74,10 @@ export default function RouteBuilderPage() {
         <Divider />
 
         <Box sx={{ p: 2 }}>
-          <RecommendedLandmarksPanel />
+          <RecommendedLandmarksPanel
+            basedOnIds={stops.map((s) => s.id)}
+            onAdd={(landmark) => setStops((prev) => (prev.some((s) => s.id === landmark.id) ? prev : [...prev, landmark]))}
+          />
         </Box>
 
         <Box sx={{ mt: 'auto', p: 2, borderTop: '1px solid #eee' }}>
